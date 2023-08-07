@@ -1,0 +1,119 @@
+---
+title: "Encuesta Nacional de Ingresos y Gastos de los Hogares 2008 (Nueva construcción)"
+author: "Richard Mondragón"
+date: "8/3/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+#Cargar librerías 
+library(readxl)
+library(kableExtra)
+library(TSstudio)
+library(dplyr)
+```
+
+```{r include=FALSE}
+#Set directory
+setwd("C:/Users/richa/Desktop/Rey")
+getwd()
+```
+
+Se utilizan los datos de la Encuesta Nacional de Ingresos y Gastos de los Hogares (ENIGH) 2008 Nueva construcción. Específicamente de los archivos "Principales variables por hogar" y "Características de los hogares, de las viviendas que habitan y el factor de expansión" del apartado de microdatos.
+
+
+### Tablas de comparación entre el número de hogares entrevistados y las estimaciones del ingreso y el gasto promedio de los hogares mexicanos con la estimaciones tomando en cuenta los factores de expansión 
+
+```{r include=FALSE}
+#Cargar los datos
+concentrado <- read.csv("concentrado.csv")
+```
+
+```{r echo=FALSE, include=TRUE}
+#Número de hogarres, ingreso y gasto
+tabla1 <- concentrado[c("folioviv", "ingcor", "gasmon")]
+colnames(tabla1) <- c("Folio de la vivienda", "Ingreso Corriente", "Gasto Corriente Monetario")
+kable(head(tabla1), caption = "Ingreso y gasto de los Hogares, 2008 (Primeras observaciones)", booktabs=TRUE, align = "c")%>%
+kable_styling(latex_options = c('HOLD_position'))
+```
+
+```{r echo=FALSE, include=TRUE}
+#número de hogares entrevistados y el ingreso y el gasto promedio
+tabla2 <- data.frame(dim(tabla1)[1], mean(tabla1$`Ingreso Corriente`), mean(tabla1$`Gasto Corriente Monetario`))
+colnames(tabla2) <- c("Total de hogares", "Ingreso promedio", "Gasto promedio")
+kable(tabla2, caption = "Total y promedios de la muestra", booktabs=TRUE, align = "c")%>%
+kable_styling(latex_options = c('HOLD_position'))
+```
+
+```{r echo=FALSE, include=TRUE}
+#Factor de expansión
+hogares <- read.csv("hogares.csv")
+tabla3 <- data.frame(tabla1, hogares$`factor`)
+tabla3[,5]  <- tabla3[,2]*tabla3[,4]
+tabla3[,6]  <- tabla3[,3]*tabla3[,4]
+colnames(tabla3) <- c("Folio de la vivienda", "Ingreso Corriente", "Gasto Corriente Monetario", "Factor", "Ingreso Corriente Expandido", "Gasto Corriente Monetario Expandido")
+
+tabla3_final<- data.frame(sum(tabla3$`Ingreso Corriente Expandido`)/sum(tabla3$Factor), sum(tabla3$`Gasto Corriente Monetario Expandido`)/sum(tabla3$Factor))
+colnames(tabla3_final) <- c("Ingreso promedio", "Gasto promedio")
+kable(tabla3_final, caption = "Promedios con factor de expansión", booktabs=TRUE, align = "c")%>%
+kable_styling(latex_options = c('HOLD_position'))
+```
+
+
+
+### Estimación del valor promedio del ingreso por edad, por grupos de 10 años, para todos los hogares unipersonales.
+
+```{r echo=FALSE, include=TRUE}
+
+unipersonales <- subset(concentrado, concentrado$tam_hog<2, select = c(edad, ingcor))
+
+prom_grupos_edad <- aggregate(x = unipersonales$ingcor, by = list(unipersonales$edad>14 & unipersonales$edad<25, unipersonales$edad>24 & unipersonales$edad<35, unipersonales$edad>34 & unipersonales$edad<45, unipersonales$edad>44 & unipersonales$edad<55, unipersonales$edad>54 & unipersonales$edad<65, unipersonales$edad>64 & unipersonales$edad<75, unipersonales$edad>74 & unipersonales$edad<85, unipersonales$edad>94 & unipersonales$edad<99), FUN = "mean")
+
+grupos_edad <- c("Todas las edades", "15-24","25-34","45-54","55-64","65-74","75-84","85-94","95-97")
+
+tabla6 <- data.frame(grupos_edad, prom_grupos_edad[,9])
+
+tabla6 <- tabla6[-c(1),]
+
+colnames(tabla6) <- c("Grupos de edad", "Ingreso promedio")
+
+kable(tabla6, caption = "Ingreso promedio de los hogares unipersonales por grupos de edad", booktabs=TRUE, align = "c") %>%
+kable_styling(latex_options = c('HOLD_position'))
+```
+
+
+```{r echo=FALSE, include=TRUE}
+
+concentrado["factor"] <- hogares$factor
+concentrado["ing_exp"] <- tabla3$`Ingreso Corriente Expandido`
+unipersonales2 <- subset(concentrado, concentrado$tam_hog<2, select = c(edad, ing_exp, factor))
+
+ingresos_grupos_edad <- aggregate(x = unipersonales2$ing_exp, by = list(unipersonales2$edad>14 & unipersonales2$edad<25, unipersonales2$edad>24 & unipersonales2$edad<35, unipersonales2$edad>34 & unipersonales2$edad<45, unipersonales2$edad>44 & unipersonales2$edad<55, unipersonales2$edad>54 & unipersonales2$edad<65, unipersonales2$edad>64 & unipersonales2$edad<75, unipersonales2$edad>74 & unipersonales2$edad<85, unipersonales2$edad>94 & unipersonales$edad<99), FUN = "sum")
+
+factor_grupos_edad <- aggregate(x = unipersonales2$factor, by = list(unipersonales2$edad>14 & unipersonales2$edad<25, unipersonales2$edad>24 & unipersonales2$edad<35, unipersonales2$edad>34 & unipersonales2$edad<45, unipersonales2$edad>44 & unipersonales2$edad<55, unipersonales2$edad>54 & unipersonales2$edad<65, unipersonales2$edad>64 & unipersonales2$edad<75, unipersonales2$edad>74 & unipersonales2$edad<85, unipersonales2$edad>94 & unipersonales$edad<99), FUN = "sum")
+
+prom_grupos_edad2<- data.frame(ingresos_grupos_edad[,9]/factor_grupos_edad[,9])
+
+grupos_edad <- c("Todas las edades", "15-24","25-34","45-54","55-64","65-74","75-84","85-94","95-97")
+
+tabla6_ <- data.frame(grupos_edad, prom_grupos_edad2[,1])
+
+tabla6_ <- tabla6_[-c(1),]
+
+colnames(tabla6_) <- c("Grupos de edad", "Ingreso promedio")
+
+kable(tabla6_, caption = "Ingreso expandido promedio de los hogares unipersonales por grupos de edad", booktabs=TRUE, align = "c") %>%
+kable_styling(latex_options = c('HOLD_position'))
+```
+
+
+
+
+
+
+
+
